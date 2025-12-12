@@ -16,11 +16,13 @@ const FogMap = ({ quests }) => {
   const [visitedPath, setVisitedPath] = useState([START_LOCATION]);
   const [visibleQuests, setVisibleQuests] = useState([]);
 
-  // 1. Initialize Map
+// 1. Initialize Map
   useEffect(() => {
+    // If a map already exists, don't create another one
     if (mapInstance.current) return;
 
-    mapInstance.current = new maplibregl.Map({
+    // Create the map instance
+    const map = new maplibregl.Map({
       container: mapContainer.current,
       // USE OSM RASTER TILES (Reliable & Free)
       style: {
@@ -49,25 +51,32 @@ const FogMap = ({ quests }) => {
       zoom: 14,
     });
 
-    mapInstance.current.on('load', () => {
+    // Save to ref
+    mapInstance.current = map;
+
+    map.on('load', () => {
       drawFog();
       
       // Add a marker for the "User" (You)
       new maplibregl.Marker({ color: '#FF6D1F' })
         .setLngLat(START_LOCATION)
-        .addTo(mapInstance.current);
+        .addTo(map); // Use 'map' local var, not ref, for safety here
     });
 
-    mapInstance.current.on('move', drawFog);
-    mapInstance.current.on('zoom', drawFog);
-    mapInstance.current.on('resize', () => {
+    map.on('move', drawFog);
+    map.on('zoom', drawFog);
+    map.on('resize', () => {
         resizeCanvas();
         drawFog();
     });
     
     resizeCanvas();
 
-    return () => mapInstance.current.remove();
+    // CLEANUP FUNCTION
+    return () => {
+        map.remove(); // Destroy the map
+        mapInstance.current = null; // CRITICAL: Reset ref to null!
+    };
   }, []);
 
   // 2. Track User & Update Path
